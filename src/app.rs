@@ -99,10 +99,8 @@ impl<'a> Application<'a> {
         let themes: Themes = Themes::load(self.config.args.themes.as_deref())?;
         let mut media: MediaLoader = MediaLoader::new()?;
         let mut translator: Box<dyn i18n::Translator> = i18n::create(
-            self.config.args.is_translate,
-            self.config.args.is_nllb,
-            self.config.args.model_cache.clone(),
             self.config.args.locales.as_deref(),
+            self.config.args.model_cache.clone(),
         )?;
         let mut renderer: Renderer<'_> = Renderer::new(&mut media, translator.as_mut())?;
         let owner: &str = self.config.args.owner.as_deref().unwrap_or(&user.login);

@@ -2,7 +2,7 @@
 name = "github-profile-repo-pins"
 version = "1.0.0"
 edition = "2024"
-rust-version = "1.88"
+rust-version = "1.100"
 license = "GPL-3.0-only"
 description = "Generate configurable public/private repository pin visualizations for GitHub user & organization profiles."
 repository = "https://github.com/profile-icons/github-profile-repo-pins"
@@ -13,7 +13,7 @@ path = "src/main.rs"
 
 [features]
 default = ["translation"]
-translation = ["dep:llama-cpp-2", "dep:minijinja", "dep:ort", "dep:tokenizers", "dep:whatlang"]
+translation = ["dep:ort", "dep:tokenizers", "dep:whatlang"]
 
 [dependencies]
 anyhow = "1.0"
@@ -21,8 +21,6 @@ base64 = "0.23"
 chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
 clap = { version = "4.6", features = ["derive", "env"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
-llama-cpp-2 = { version = "=0.1.161", default-features = false, optional = true }
-minijinja = { version = "2", optional = true }
 ort = { version = "=2.0.0-rc.10", default-features = false, features = ["std", "load-dynamic"], optional = true }
 rayon = "1.12"
 regex = "1.13"
@@ -36,6 +34,7 @@ sha2 = "0.11"
 tempfile = "3.27"
 tokenizers = { version = "0.22", default-features = false, features = ["fancy-regex"], optional = true }
 unicode-casefold = "0.2"
+unicode-segmentation = "1.13"
 wait-timeout = "0.2"
 whatlang = { version = "0.18", optional = true }
 

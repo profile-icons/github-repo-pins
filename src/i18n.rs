@@ -19,29 +19,22 @@ impl Translator for NoTranslation {
 #[derive(Deserialize)]
 struct Translations {
     static_translations: BTreeMap<String, BTreeMap<String, String>>,
-    supported_dynamic_locales: Vec<String>,
-    #[serde(rename = "hy_mt2_languages", alias = "hy_mt2_langs")]
-    hy_mt2_langs: BTreeMap<String, String>,
     nllb_codes: BTreeMap<String, String>,
 }
 pub fn create(
-    is_enabled: bool,
-    is_nllb: bool,
-    cache: Option<std::path::PathBuf>,
     locales: Option<&str>,
+    cache: Option<std::path::PathBuf>,
 ) -> Result<Box<dyn Translator>> {
-    if !is_enabled {
+    let Some(locales) = locales.filter(|locales| !locales.trim().is_empty()) else {
         return Ok(Box::new(NoTranslation));
-    }
+    };
     #[cfg(feature = "translation")]
     {
-        Ok(Box::new(native::NativeTranslator::new(
-            is_nllb, cache, locales,
-        )?))
+        Ok(Box::new(native::NativeTranslator::new(cache, locales)?))
     }
     #[cfg(not(feature = "translation"))]
     {
-        let _ = (is_nllb, cache, locales);
+        let _ = (cache, locales);
         anyhow::bail!(
             "this binary was built without translation; rebuild with the translation feature"
         );

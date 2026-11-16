@@ -40,38 +40,57 @@ jobs:
         run: |
           cargo +stable fmt --all -- --check
           cargo +stable clippy --locked --all-targets --all-features -- -D warnings
+          cargo +stable test --locked --all-features
           cargo +stable check --locked --no-default-features
           cargo +stable build --locked --release
+      
+      - name: Install ONNX
+        shell: bash
+        run: bash scripts/setup-onnx.sh
 
-      - name: Package
+      - name: Smoke-test release binary
+        shell: bash
+        run: |
+          test -f "$ORT_DYLIB_PATH"
+          target/release/gh-profile-repo-pins --help >/dev/null
+
+      - name: Package build
         if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
         shell: bash
         env:
           PLATFORM: ${{ matrix.platform }}
         run: |
-          target/release/gh-profile-repo-pins --help >/dev/null
           package_dir="$(mktemp -d)"
           trap 'rm -rf -- "$package_dir"' EXIT
           install -m 755 target/release/gh-profile-repo-pins "$package_dir/gh-profile-repo-pins"
           printf '%s\n' "$GITHUB_SHA" > "$package_dir/SOURCE_COMMIT"
           mkdir -p dist
           asset="gh-profile-repo-pins-$PLATFORM.tar.gz"
-          tar --create --gzip --file "dist/$asset" --directory "$package_dir" gh-profile-repo-pins SOURCE_COMMIT
+          tar --create --gzip --file "dist/$asset" \
+            --directory "$package_dir" gh-profile-repo-pins SOURCE_COMMIT
           (cd dist && sha256sum "$asset" > "$asset.sha256")
 
-      - name: Upload
+      - name: Package SMALL100
+        if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: bash scripts/package-small100.sh "$PLATFORM"
+
+      - name: Upload release assets
         if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
         uses: actions/upload-artifact@v7
         with:
           name: repo-pins-binary-${{ matrix.platform }}
           path: dist/*
+          compression-level: 0
           if-no-files-found: error
           retention-days: 1
 
-  publish-binary:
+  publish-bin:
     if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
     needs: verify
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     permissions:
       contents: write
@@ -81,21 +100,25 @@ jobs:
       cancel-in-progress: false
 
     steps:
-      - name: Download binaries
+      - name: Download
         uses: actions/download-artifact@v8
         with:
           pattern: repo-pins-binary-*
           path: dist
           merge-multiple: true
 
-      - name: Publish binaries
+      - name: Publish
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           cd dist
-          sha256sum --check --strict gh-profile-repo-pins-linux-x64.tar.gz.sha256 gh-profile-repo-pins-linux-arm64.tar.gz.sha256
+          sha256sum --check --strict \
+            gh-profile-repo-pins-linux-x64.tar.gz.sha256 \
+            gh-profile-repo-pins-linux-arm64.tar.gz.sha256 \
+            gh-profile-repo-pins-small100-linux-x64.tar.gz.sha256 \
+            gh-profile-repo-pins-small100-linux-arm64.tar.gz.sha256
           tag="binary-$GITHUB_SHA"
           state="$(gh release view "$tag" --json isDraft --jq .isDraft 2>/dev/null || printf missing)"
           if [[ "$state" == false ]]; then
@@ -105,7 +128,7 @@ jobs:
           if [[ "$state" == missing ]]; then
             gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease --latest=false \
               --title "Action binaries $GITHUB_SHA" \
-              --notes "Verified Linux x64 and ARM64 binaries for source commit $GITHUB_SHA."
+              --notes "Verified Linux x64 and ARM64 binaries, including SMALL100 ONNX bundles, for source commit $GITHUB_SHA."
           fi
           gh release upload "$tag" ./*.tar.gz ./*.sha256 --clobber
           gh release edit "$tag" --draft=false --latest=false

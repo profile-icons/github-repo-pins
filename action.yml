@@ -14,7 +14,7 @@ inputs:
     description: "GitHub username. Default: `github.repository_owner`. Non-default username required for org profiles."
     required: true
   theme:
-    description: "Theme name. Default is `github_soft`. Find & add themes at: profile-icons/readme-repo-pins."
+    description: "Theme name. Default is `github_soft`. Find & add themes at: profile-icons/github-repo-pins."
     required: false
   background_image:
     description: "Background image (URL or file path)."
@@ -37,12 +37,13 @@ inputs:
   is_exclude_repos_contributed:
     description: "Exclude contributed repos not pinned. True or False (empty). Overridden by `repo_names_exclusive`."
     required: false
-  is_i18n:
-    description: "Support repository pin badge and description text translations for multiple i18n locales."
+  translations:
+    description: "Comma-separated SMALL100 locale codes (e.g. sv,de,it). Including all anywhere selects all 100 languages. Empty disables translation. Refer to README."
     required: false
   hf_token:
     description: "HuggingFace token to authenticate requests for faster downloading with higher rate limits."
     required: false
+
 
 runs:
   using: "composite"
@@ -57,36 +58,19 @@ runs:
     - name: Checkout src
       uses: actions/checkout@v7
       with:
-        repository: profile-icons/readme-repo-pins
+        repository: profile-icons/github-repo-pins
         ref: main
-        path: readme-repo-pins
+        path: github-repo-pins
         token: ${{ inputs.gh_api_token }}
         fetch-depth: 1
         persist-credentials: false
 
-    - name: Setup bin
-      shell: bash
-      working-directory: ${{ github.workspace }}
-      run: bash "$GITHUB_ACTION_PATH/scripts/setup-bin.sh" "$GITHUB_WORKSPACE/readme-repo-pins"
-
-    - name: Cache
-      if: ${{ contains(fromJSON('["true","1","yes","on"]'), inputs.is_i18n) }}
-      uses: actions/cache@v6
-      with:
-        path: |
-          ${{ runner.temp }}/repo-pins-models
-          ${{ runner.temp }}/repo-pins-onnx
-        key: repo-pins-models-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('readme-repo-pins/src/translation/*.rs', 'readme-repo-pins/scripts/setup-onnx.sh') }}
-
-    - name: Setup ONNX
+    - name: Setup binary (standard or SMALL100)
       shell: bash
       working-directory: ${{ github.workspace }}
       env:
-        IS_TRANSLATE: ${{ inputs.is_i18n }}
-      run: |
-        case "${IS_TRANSLATE,,}" in
-          true|1|yes|on) bash "$REPO_PINS_SRC_DIR/scripts/setup-onnx.sh" ;;
-        esac
+        TRANSLATION_LOCALES: ${{ inputs.translations }}
+      run: bash "$GITHUB_ACTION_PATH/scripts/setup-bin.sh" "$GITHUB_WORKSPACE/github-repo-pins"
 
     - name: Run
       shell: bash
@@ -104,9 +88,8 @@ runs:
         IS_EXCLUDE_REPOS_OWNED: ${{ inputs.is_exclude_repos_owned }}
         IS_EXCLUDE_REPOS_CONTRIBUTED: ${{ inputs.is_exclude_repos_contributed }}
         IS_CONTRIBUTION_STATS: ${{ inputs.is_contribution_stats }}
-        IS_TRANSLATE: ${{ inputs.is_i18n }}
+        TRANSLATION_LOCALES: ${{ inputs.translations }}
         HF_TOKEN: ${{ inputs.hf_token }}
-        REPO_PINS_MODEL_CACHE: ${{ runner.temp }}/repo-pins-models
       run: |
         for variable in NUM_REPO_PINS REPO_PIN_ORDER; do
           if [[ -z "${!variable}" ]]; then unset "$variable"; fi
@@ -120,3 +103,4 @@ runs:
         GH_USERNAME: ${{ inputs.gh_username || github.repository_owner }}
         DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       run: bash "$REPO_PINS_SRC_DIR/scripts/commit.sh"
+

@@ -1,23 +1,19 @@
-# GitHub Profile Repository Pins
+# GitHub Repository Pins
 
-Generate configurable public/private repository pin visualizations for GitHub user & organization profiles with:
+Generate public/private user/org repo pin visualizations for GitHub `README.md` with:
 
 * (optional) dynamic ordering
 * (optional) selection of any public and (authorized) private repository
 * (optional) themes - select from existing, or contribute to the [themes JSON file](https://github.com/profile-icons/readme-repo-pins/blob/main/files/themes.json)
 * (optional) background imagery - URL or filepath
 * (optional) user contribution statistics
-* (optional) i18n translations (using [tencent/Hy-MT2-1.8B-GGUF](https://huggingface.co/tencent/Hy-MT2-1.8B-GGUF) and [TigreGotico/nllb-200-distilled-600M-onnx](https://huggingface.co/TigreGotico/nllb-200-distilled-600M-onnx))
+* (optional) i18n translations using [casawolice/small100-onnx](https://huggingface.co/casawolice/small100-onnx)
 
-Pins for private repositories automatically link to deployed public Pages if the link is set to the repository.
+Pins for private repos navigate to deployed sites if the link is set to the repo description.
 
-Pins can be used with deployed GitHub profile sites. A demo is found here: [https://r055a.github.io/r055a](https://r055a.github.io/r055a)
+# Instructions
 
-## Instructions
-
-### Workflow
-
-Copy the workflow to `.github/workflows/gen-repo-pins.yml` in a user (no PAT required) or organization profile repo:
+Create the workflow `.github/workflows/gen-repo-pins.yml`:
 
 ```yaml
 name: gen-repo-pins
@@ -35,10 +31,10 @@ jobs:
     runs-on: ubuntu-26.04
 
     steps:
-      - uses: profile-icons/github-profile-repo-pins@main
+      - uses: profile-icons/github-repo-pins@main
         with:
-          gh_api_token: ${{ secrets.GH_API_TOKEN || secrets.GITHUB_TOKEN }}  # default fallback
-          gh_username: ${{ secrets.GH_USERNAME || github.repository_owner }}  # default fallback
+          gh_api_token: ${{ secrets.GH_API_TOKEN || secrets.GITHUB_TOKEN }}  # optional, use default for public repos; PAT for private, org repos
+          gh_username: ${{ secrets.GH_USERNAME || github.repository_owner }}  # optional, defaults to repo owner
           theme: ${{ secrets.THEME }}  # optional
           background_image: ${{ secrets.BG_IMG }}  # optional
           num_repo_pins: ${{ secrets.NUM_REPO_PINS }}  # optional
@@ -47,23 +43,23 @@ jobs:
           is_exclude_repos_owned: ${{ secrets.IS_EXCLUDE_REPOS_OWNED }}  # optional
           is_exclude_repos_contributed: ${{ secrets.IS_EXCLUDE_REPOS_CONTRIBUTED }}  # optional
           is_contribution_stats: ${{ secrets.IS_CONTRIBUTION_STATS }}  # optional
-          is_i18n: ${{ secrets.IS_TRANSLATE }}  # optional
+          translations: ${{ secrets.TRANSLATE }}  # optional 
           hf_token: ${{ secrets.HF_TOKEN }}  # optional
 ```
 
-### README
+## README
 
-Insert the following placeholder into the repository profile `README.md` where you want the pins to render:
+Insert the following placeholder into the repo profile `README.md`:
 
 ```markdown
 <!-- START: REPO-PINS -->
 <!-- END: REPO-PINS -->
 ```
 
-## Configurations (optional)
+# Configurations (optional)
 
-The repository project was initially created to streamline the display of generated pin visualizations on a
-private profile `README.md`, but supports broader use cases with optional personalization and elevation of API privileges.
+The repo project was initially created to streamline the display of generated pin visualizations on a
+private profile `README.md`, but supports broader use cases with optional configurations and elevation of API privileges.
 
 <details>
 <summary>API Token</summary>
@@ -287,7 +283,7 @@ where:
 </details>
 
 <details>
-<summary>Exclude Owned Repositories (Not Pinned)</summary>
+<summary>Exclude Owned Repositories (not pinned)</summary>
 
 By default, repository data collected for generating pin visualizations is first those pinned by a user, followed by
 other repositories owned by the user, and then other repositories the user has contributed to but does not own.
@@ -308,7 +304,7 @@ where:
 </details>
 
 <details>
-<summary>Exclude Contributed Repositories (Neither Owned Nor Pinned)</summary>
+<summary>Exclude Contributed Repositories (neither owned nor pinned)</summary>
 
 By default, repository data collected for generating pin visualizations is first those pinned by a user, followed by
 other repositories owned by the user, and then other repositories the user has contributed to but does not own.
@@ -343,22 +339,152 @@ where:
 * `is_stats` is either `true` (any value) or `false` (empty) - optional `[]`
 
 > The default `IS_CONTRIBUTION_STATS` is `false`
+
+### Calculations
+
+The actual user's proportion of credited contributions:
+
+$$
+P = \frac{A_u}{\sum_{i=1}^{n} A_i} \times 100
+$$
+
+The user's contribution weighted relative to the average of all:
+
+$$
+W = \frac{p}{p + \frac{1-p}{n-1}} \times 100
+$$
+
+Where:
+- $A_u$ = credited additions attributed to the user.
+- $A_i$ = credited additions attributed to contributor $i$.
+- $p = P/100$ = the user's actual contribution share.
+- $n$ = number of contributors with positive credited additions.
+- $W$ = weighted contribution score (0–100).
+
 </details>
 
 <details>
 <summary>Translations</summary>
 
-The optional `IS_TRANSLATE` configuration controls whether repository pin badge and description text is i18n translated.
+The optional TRANSLATE configuration controls whether repository pin description text is translated using [casawolice/small100-onnx](https://huggingface.co/casawolice/small100-onnx), and with which locales.
 
-This can be set by creating a [GitHub Action](https://docs.github.com/en/actions) with the following key-value field pairs:
+This can be set by creating a GitHub Action with the following key-value field pairs:
 
-* key: `IS_TRANSLATE`
-* value: `[is_i18n]`
+* key: `TRANSLATE`
+* value (either one of the two formats):
+  * `<locale-code>,...,<locale-code>` 
+  * `all` - to translate each repo pin description text into all 100 supported languages.
 
 where:
-* `is_i18n` is either `true` (any value) or `false` (empty) - optional `[]`
+* `locale-code` matches a locale code in the following list - required `<>`
+* The default `TRANSLATE` is none/false when either not configured or empty.
 
-> The default `IS_TRANSLATE` is `false`
+The list of available translations and respective locale codes:
+
+```json
+{
+  "Afrikaans": "af",
+  "Albanian": "sq",
+  "Amharic": "am",
+  "Arabic": "ar",
+  "Armenian": "hy",
+  "Asturian": "ast",
+  "Azerbaijani": "az",
+  "Bashkir": "ba",
+  "Belarusian": "be",
+  "Bengali": "bn",
+  "Bosnian": "bs",
+  "Breton": "br",
+  "Bulgarian": "bg",
+  "Burmese": "my",
+  "Catalan": "ca",
+  "Cebuano": "ceb",
+  "Chinese": "zh",
+  "Czech": "cs",
+  "Danish": "da",
+  "Dutch": "nl",
+  "English": "en",
+  "Estonian": "et",
+  "Finnish": "fi",
+  "French": "fr",
+  "Fulah": "ff",
+  "Galician": "gl",
+  "Ganda": "lg",
+  "Georgian": "ka",
+  "German": "de",
+  "Greek": "el",
+  "Gujarati": "gu",
+  "Haitian Creole": "ht",
+  "Hausa": "ha",
+  "Hebrew": "he",
+  "Hindi": "hi",
+  "Croatian": "hr",
+  "Hungarian": "hu",
+  "Icelandic": "is",
+  "Igbo": "ig",
+  "Iloko": "ilo",
+  "Indonesian": "id",
+  "Irish": "ga",
+  "Italian": "it",
+  "Japanese": "ja",
+  "Javanese": "jv",
+  "Kannada": "kn",
+  "Kazakh": "kk",
+  "Khmer": "km",
+  "Korean": "ko",
+  "Lao": "lo",
+  "Latvian": "lv",
+  "Lingala": "ln",
+  "Lithuanian": "lt",
+  "Luxembourgish": "lb",
+  "Macedonian": "mk",
+  "Malagasy": "mg",
+  "Malay": "ms",
+  "Malayalam": "ml",
+  "Marathi": "mr",
+  "Mongolian": "mn",
+  "Nepali": "ne",
+  "Northern Sotho": "ns",
+  "Norwegian": "no",
+  "Occitan": "oc",
+  "Odia": "or",
+  "Pashto": "ps",
+  "Persian": "fa",
+  "Polish": "pl",
+  "Portuguese": "pt",
+  "Punjabi": "pa",
+  "Romanian": "ro",
+  "Russian": "ru",
+  "Scottish Gaelic": "gd",
+  "Serbian": "sr",
+  "Sindhi": "sd",
+  "Sinhala": "si",
+  "Slovak": "sk",
+  "Slovenian": "sl",
+  "Somali": "so",
+  "Spanish": "es",
+  "Sundanese": "su",
+  "Swahili": "sw",
+  "Swati": "ss",
+  "Swedish": "sv",
+  "Tagalog": "tl",
+  "Tamil": "ta",
+  "Thai": "th",
+  "Tswana": "tn",
+  "Turkish": "tr",
+  "Ukrainian": "uk",
+  "Urdu": "ur",
+  "Uzbek": "uz",
+  "Vietnamese": "vi",
+  "Welsh": "cy",
+  "Western Frisian": "fy",
+  "Wolof": "wo",
+  "Xhosa": "xh",
+  "Yiddish": "yi",
+  "Yoruba": "yo",
+  "Zulu": "zu"
+```
+
 </details>
 
 <details>
@@ -374,33 +500,31 @@ This can be set by creating a [GitHub Action](https://docs.github.com/en/actions
 where:
 * `hf_token` is a unique token code generated from a personal HuggingFace account - optional `[]`
 </details>
+   
 
-## Local Development
-
-### Build
+# Build
 
 ```bash
 cargo build --release --locked
 ```
 
-### i18n
+# i18n
 
 ```bash
 bash scripts/setup-onnx.sh
-export ORT_DYLIB_PATH="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/repo-pins-onnx/onnxruntime-linux-x64-1.22.0/lib/libonnxruntime.so.1.22.0"
 ```
 
-### Run
+# Run
 
 ```bash
 cargo run --release --locked -- [OPTIONS]
 ```
 
-## Contribute
+# Contribute
 
-Before making a Pull Request, ensure it addresses an Issue, and verify the branch passes:
+Before making an Issue-linked Pull Request, verify it passes CI checks:
 
 ```bash
 cargo fmt --all
-cargo clippy --locked --all-targets --all-features -- -D warnings
+cargo clippy --fix --allow-dirty --allow-staged --all-targets --all-features
 ```

@@ -35,10 +35,6 @@ pub struct Arguments {
     pub not_contributed: bool,
     #[arg(long, env = "IS_CONTRIBUTION_STATS", default_value = "false", value_parser = parse_bool)]
     pub stats: bool,
-    #[arg(long, env = "IS_TRANSLATE", default_value = "false", value_parser = parse_bool)]
-    pub is_translate: bool,
-    #[arg(long, env = "IS_NLLB", default_value = "false", value_parser = parse_bool)]
-    pub is_nllb: bool,
     #[arg(long, env = "GH_REPO_NAME")]
     pub target_repo: Option<String>,
     #[arg(long, default_value = ".")]
@@ -67,7 +63,7 @@ pub struct Arguments {
     pub input: Option<PathBuf>,
     #[arg(long, env = "REPO_PINS_MODEL_CACHE")]
     pub model_cache: Option<PathBuf>,
-    #[arg(long)]
+    #[arg(long, env = "TRANSLATION_LOCALES")]
     pub locales: Option<String>,
 }
 
