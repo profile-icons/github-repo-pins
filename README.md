@@ -344,15 +344,11 @@ where:
 
 The actual user's proportion of credited contributions:
 
-$$
-P = \frac{A_u}{\sum_{i=1}^{n} A_i} \times 100
-$$
+$P = \frac{A_u}{\sum_{i=1}^{n} A_i} \times 100$
 
 The user's contribution weighted relative to the average of all:
 
-$$
-W = \frac{p}{p + \frac{1-p}{n-1}} \times 100
-$$
+$W = \frac{p}{p + \frac{1-p}{n-1}} \times 100$
 
 Where:
 - $A_u$ = credited additions attributed to the user.

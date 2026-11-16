@@ -9,7 +9,8 @@ use serde::Deserialize;
 use std::{collections::BTreeMap, fs, path::PathBuf};
 
 const MAX_INPUT_TOKENS: usize = 128;
-const MAX_NEW_TOKENS: usize = 128;
+const INITIAL_MAX_NEW_TOKENS: usize = 128;
+const MAX_NEW_TOKENS: usize = 256;
 const EOS: i64 = 2;
 const MODEL: ModelSpec = ModelSpec {
     repo: "casawolice/small100-onnx",
@@ -21,6 +22,17 @@ const MODEL: ModelSpec = ModelSpec {
 struct LanguageTokens {
     lang_to_id: BTreeMap<String, i64>,
 }
+
+#[derive(Debug)]
+pub(super) struct OutputBudgetExceeded;
+
+impl std::fmt::Display for OutputBudgetExceeded {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("SMaLL-100 translation exceeded its output budget")
+    }
+}
+
+impl std::error::Error for OutputBudgetExceeded {}
 
 pub(super) struct Small100 {
     tokenizer: tokenizers::Tokenizer,
@@ -102,6 +114,11 @@ impl Small100 {
         let mut generated: Vec<u32> = Vec::new();
         let mut complete = false;
         for step in 0..MAX_NEW_TOKENS {
+            if step == INITIAL_MAX_NEW_TOKENS {
+                eprintln!(
+                    "::notice::SMaLL-100 exceeded {INITIAL_MAX_NEW_TOKENS} output tokens; extending to {MAX_NEW_TOKENS}"
+                );
+            }
             let input_ids = Tensor::<i64>::from_array(([1, 1], vec![current]))?;
             let use_cache = Tensor::<bool>::from_array(([1], vec![step > 0]))?;
             let mut feed: Vec<(String, SessionInputValue<'_>)> = Vec::new();
@@ -158,7 +175,9 @@ impl Small100 {
             }
             current = next;
         }
-        ensure!(complete, "SMaLL-100 translation exceeded its output budget");
+        if !complete {
+            return Err(OutputBudgetExceeded.into());
+        }
         self.tokenizer
             .decode(&generated, true)
             .map_err(|err| anyhow::anyhow!("SMaLL-100 decoding: {err}"))

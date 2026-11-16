@@ -10,7 +10,7 @@ use crate::Result;
 use anyhow::{Context, ensure};
 use cache::ModelCache;
 use emoji::ProtectedText;
-use small100::Small100;
+use small100::{OutputBudgetExceeded, Small100};
 use std::{
     collections::{BTreeMap, BTreeSet},
     path::PathBuf,
@@ -50,6 +50,23 @@ fn parse_locales(value: &str) -> Result<Vec<String>> {
         "translation locale list cannot be empty"
     );
     Ok(result)
+}
+
+fn recover_output_budget(
+    translated: Result<String>,
+    source: &str,
+    target: &str,
+) -> Result<Option<String>> {
+    match translated {
+        Ok(text) => Ok(Some(text)),
+        Err(err) if err.downcast_ref::<OutputBudgetExceeded>().is_some() => {
+            eprintln!(
+                "::warning::SMaLL-100 {source} -> {target} exceeded its output budget; using the original text for this locale"
+            );
+            Ok(None)
+        }
+        Err(err) => Err(err),
+    }
 }
 
 pub(super) struct NativeTranslator {
@@ -142,7 +159,9 @@ impl Translator for NativeTranslator {
                         .context("SMaLL-100 was not initialized")?
                         .translate(run, target)
                 })
-                .with_context(|| format!("SMaLL-100 translation {src} -> {target}"))?;
+                .with_context(|| format!("SMaLL-100 translation {src} -> {target}"));
+            let translated =
+                recover_output_budget(translated, &src, target)?.unwrap_or_else(|| text.to_owned());
             result.insert(target.clone(), translated);
         }
         self.results.insert(text.to_owned(), result.clone());
