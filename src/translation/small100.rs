@@ -8,9 +8,9 @@ use ort::{
 use serde::Deserialize;
 use std::{collections::BTreeMap, fs, path::PathBuf};
 
-const MAX_INPUT_TOKENS: usize = 128;
-const INITIAL_MAX_NEW_TOKENS: usize = 128;
-const MAX_NEW_TOKENS: usize = 512;
+const MAX_INPUT_TOKENS: usize = 512;
+const INITIAL_MAX_NEW_TOKENS: usize = 512;
+const MAX_NEW_TOKENS: usize = 1024;
 const EOS: i64 = 2;
 const MODEL: ModelSpec = ModelSpec {
     repo: "casawolice/small100-onnx",

@@ -28,6 +28,7 @@ pub trait RepoSrc: Sync {
     fn contributors(&self, repo: &Repo) -> Result<Vec<Contributor>>;
     fn profiles(&self, repos: &Repo, contributors: &[Contributor]) -> Result<Vec<Contributor>>;
     fn cost(&self) -> u64;
+    fn owned_repos(&self, owner: &str, order: OrderField) -> Result<Vec<Repo>>;
 }
 
 pub struct GitHubClient {
@@ -191,6 +192,16 @@ struct RestContributor {
 struct ProfileData {
     #[serde(rename = "repository", alias = "repo")]
     repo: Option<BTreeMap<String, Option<CommitAuthors>>>,
+}
+#[derive(Deserialize)]
+struct OwnedReposData {
+    #[serde(rename = "repositoryOwner")]
+    owner: Option<OwnedReposNode>,
+}
+
+#[derive(Deserialize)]
+struct OwnedReposNode {
+    repositories: Connection,
 }
 
 impl GitHubClient {
@@ -544,5 +555,72 @@ impl RepoSrc for GitHubClient {
     }
     fn cost(&self) -> u64 {
         self.cost.load(Ordering::Relaxed)
+    }
+    fn owned_repos(&self, owner: &str, order: OrderField) -> Result<Vec<Repo>> {
+        let query = format!(
+            r#"
+            query(
+                $login: String!,
+                $after: String,
+                $field: RepositoryOrderField!
+            ) {{
+                rateLimit {{ cost }}
+                repositoryOwner(login: $login) {{
+                    repositories(
+                        first: 100,
+                        after: $after,
+                        ownerAffiliations: [OWNER],
+                        orderBy: {{
+                            field: $field,
+                            direction: DESC
+                        }}
+                    ) {{
+                        pageInfo {{
+                            hasNextPage
+                            endCursor
+                        }}
+                        nodes {{
+                            {FIELDS}
+                        }}
+                    }}
+                }}
+            }}
+            "#
+        );
+
+        let mut result: Vec<Repo> = Vec::new();
+        let mut cursor: Option<String> = None;
+        let mut seen: HashSet<String> = HashSet::new();
+
+        loop {
+            let data: OwnedReposData = self.query(
+                &query,
+                Variables {
+                    login: Some(owner),
+                    field: Some(order.graphql()),
+                    after: cursor.as_deref(),
+                    ..Variables::default()
+                },
+            )?;
+
+            let connection = data
+                .owner
+                .with_context(|| format!("GitHub owner {owner} was not found"))?
+                .repositories;
+
+            result.extend(
+                connection
+                    .nodes
+                    .into_iter()
+                    .flatten()
+                    .filter(|repo| repo.owner.login.eq_ignore_ascii_case(owner)),
+            );
+
+            if !advance(connection.page_info, &mut cursor, &mut seen)? {
+                break;
+            }
+        }
+
+        Ok(result)
     }
 }

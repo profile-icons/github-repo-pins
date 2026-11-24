@@ -161,12 +161,18 @@ impl<'a> Application<'a> {
     }
     fn fetch(&self, user: &User) -> Result<Vec<Repo>> {
         if !self.config.repos.is_empty() {
-            return self
-                .config
-                .repos
-                .iter()
-                .map(|name| self.src.repo(name))
-                .collect();
+            let order = self.config.args.order.unwrap_or(OrderField::Stars);
+            let mut repos: Vec<Repo> = Vec::new();
+
+            for selector in &self.config.repos {
+                if selector.contains('/') {
+                    repos.push(self.src.repo(selector)?);
+                } else {
+                    repos.extend(self.src.owned_repos(selector, order)?);
+                }
+            }
+
+            return Ok(repos);
         }
         let mut res: Vec<Repo> = self.src.pinned(&user.login)?;
         if res.len() < self.config.pin_count {
@@ -181,6 +187,13 @@ impl<'a> Application<'a> {
         Ok(res)
     }
 }
+fn matches_repo_selector(selector: &str, repo: &Repo) -> bool {
+    if selector.contains('/') {
+        selector.eq_ignore_ascii_case(&repo.full_name())
+    } else {
+        selector.eq_ignore_ascii_case(&repo.owner.login)
+    }
+}
 pub fn select(
     repos: &mut Vec<Repo>,
     config: &Config,
@@ -189,6 +202,14 @@ pub fn select(
 ) {
     let mut seen: HashSet<String> = HashSet::new();
     repos.retain(|repo| seen.insert(repo.full_name().to_lowercase()));
+    if !config.repos.is_empty() {
+        repos.retain(|repo| {
+            config
+                .repos
+                .iter()
+                .any(|selector| matches_repo_selector(selector, repo))
+        });
+    }
     let order: Option<OrderField> = config
         .args
         .order
@@ -199,14 +220,8 @@ pub fn select(
                 config
                     .repos
                     .iter()
-                    .position(|name| name.eq_ignore_ascii_case(&repo.full_name()))
+                    .position(|selector| matches_repo_selector(selector, repo))
                     .unwrap_or(usize::MAX)
-            });
-            repos.retain(|repo| {
-                config
-                    .repos
-                    .iter()
-                    .any(|name| name.eq_ignore_ascii_case(&repo.full_name()))
             });
         }
         Some(OrderField::Name) => repos.sort_by(|left, right| left.name.cmp(&right.name)),

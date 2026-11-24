@@ -19,7 +19,10 @@ impl Icon {
             let source: String = format!(r#"<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32">{geometry}</svg>"#);
             let tree: resvg::usvg::Tree = resvg::usvg::Tree::from_str(&source, &resvg::usvg::Options::default())
                 .with_context(|| format!("could not parse {name}"))?;
-            let bounds: resvg::usvg::Rect = tree.root().bounding_box();
+            let bounds: resvg::usvg::Rect = tree
+                .root()
+                .bounding_box()
+                .with_context(|| format!("empty icon: {name}"))?;
             ensure!(bounds.width() > 0.0 && bounds.height() > 0.0, "empty icon: {name}");
             let svg: String = parts.iter().map(|path| format!(r#"<path d="{path}" fill="var(--text)" fill-rule="evenodd"/>"#)).collect();
             Ok((name.clone(), Self { svg, bounds }))

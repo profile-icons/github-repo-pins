@@ -6,7 +6,7 @@ case "$(uname -s)/$(uname -m)" in
     platform="linux-x64"
     ;;
   Linux/aarch64)
-    platform="linux-aarch64"
+    platform="linux-arm64"
     ;;
   *)
     printf '%s\n' \
@@ -22,14 +22,20 @@ runtime_lib="$runtime_dir/lib/libonnxruntime.so.1.22.0"
 mkdir -p "$runtime_parent"
 
 if [[ ! -f "$runtime_lib" ]]; then
-  archive="$(mktemp "$runtime_parent/runtime.XXXXXX.tgz")"
+  archive="$(mktemp "$runtime_parent/runtime.XXXXXX.nupkg")"
   trap 'rm -f -- "$archive"' EXIT
 
-  curl --fail --location --retry 3 --proto '=https' --tlsv1.2 \
-    "https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-$platform-1.22.0.tgz" \
+  curl --fail --location --retry 3 --proto '=https' --proto-redir '=https' --tlsv1.2 \
+    "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime/1.22.0/microsoft.ml.onnxruntime.1.22.0.nupkg" \
     --output "$archive"
+  mkdir -p "$runtime_dir/lib"
+  unzip -jo "$archive" \
+    "runtimes/$platform/native/*.so*" \
+    -d "$runtime_dir/lib"
 
-  tar --no-same-owner -xzf "$archive" -C "$runtime_parent"
+  if [[ ! -f "$runtime_lib" ]]; then
+    mv "$runtime_dir/lib/libonnxruntime.so" "$runtime_lib"
+  fi
 fi
 
 if [[ ! -f "$runtime_lib" ]]; then

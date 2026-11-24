@@ -262,17 +262,20 @@ where:
 </details>
 
 <details>
-<summary>Repository List</summary>
+<summary>Exclusive Repository List</summary>
 
 The optional `REPO_NAMES_EXCLUSIVE` configuration controls the exclusive generation of pins for a given list of repository names.
 
 This can be set by creating a [GitHub Action](https://docs.github.com/en/actions) with the following key-value field pairs:
 
 * key: `REPO_NAMES_EXCLUSIVE`
-* value: `<owner/repo>,...,<owner/repo>`
+* value (either one of the two formats, or combined for varied `owner` configurations):
+  * `<owner/repo>,...,<owner/repo>`
+  * `<owner>,...,<owner>`
 
 where:
-* `owner/repo` matches the owner/repository names in the URL of a given repository - required `<>`
+* `owner/repo` matches the owner/repository name in the URL of a given repository - required `<>`
+* `owner` matches the owner corresponding to all `owner/repo` names - required `<>`
 * `<owner/repo>,...,<owner/repo>` is a list of any number of `owner/repo` separated by commas `,`
 
 #### Examples

@@ -240,7 +240,7 @@ impl Config {
             .map(str::to_owned)
             .collect();
         for name in &repos {
-            validate_repo_name(name)?;
+            validate_repo_selector(name)?;
         }
         if let Some(name) = &args.target_repo {
             validate_repo_name(name)?;
@@ -258,10 +258,14 @@ impl Config {
         }
         let pin_count: usize = args
             .pins
-            .unwrap_or(if repos.is_empty() {
-                DEFAULT_PINS
-            } else {
-                repos.len()
+            .unwrap_or_else(|| {
+                if repos.is_empty() {
+                    DEFAULT_PINS
+                } else if repos.iter().any(|name| !name.contains('/')) {
+                    MAX_PINS
+                } else {
+                    repos.len()
+                }
             })
             .min(MAX_PINS);
         ensure!(
@@ -304,5 +308,21 @@ pub fn validate_repo_name(val: &str) -> Result<()> {
                 )),
         "expected owner/repository, got {val}"
     );
+    Ok(())
+}
+pub fn validate_repo_selector(val: &str) -> Result<()> {
+    if val.contains('/') {
+        return validate_repo_name(val);
+    }
+    ensure!(
+        !val.is_empty()
+            && val != "."
+            && val != ".."
+            && val
+                .chars()
+                .all(|c| { c.is_ascii_alphanumeric() || "._-".contains(c) }),
+        "expected owner or owner/repository, got {val}"
+    );
+
     Ok(())
 }

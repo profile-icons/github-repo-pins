@@ -20,7 +20,7 @@ inputs:
     description: "Background image (URL or file path)."
     required: false
   repo_names_exclusive:
-    description: "Exclusive list of repositories (owner/repo) pins are rendered only for, separated by commas."
+    description: "Exclusive list of repositories (`owner/repo`, or `owner` for all owned repos) pins are rendered only for, separated by commas."
     required: false
   is_contribution_stats:
     description: "Include user contribution statistics (percentage). True or False (empty). Default: `False`."
