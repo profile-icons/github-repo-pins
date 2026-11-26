@@ -89,6 +89,26 @@ impl HistReader {
         run(command, None, self.timeout).map_err(|_| {
             anyhow::anyhow!("could not clone {full_name}; check token access and Git connectivity")
         })?;
+        if let Err(err) = self.git(
+            temp.path(),
+            &["rev-parse", "--verify", "HEAD^{commit}"],
+            None,
+            Some(&auth),
+        ) {
+            let refs = self.git(
+                temp.path(),
+                &["ls-remote", "--refs", "origin"],
+                None,
+                Some(&auth),
+            )?;
+
+            if refs.is_empty() {
+                eprintln!("Repository {full_name} is empty; no history to score");
+                return Ok(Vec::new());
+            }
+
+            return Err(err).with_context(|| format!("Repository {full_name} has no valid HEAD"));
+        }
         self.read_with_auth(temp.path(), Some(&auth))
     }
     pub fn local(&self, dir: &Path) -> Result<Vec<Commit>> {
